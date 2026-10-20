@@ -1,0 +1,24 @@
+name: GawharaTickets
+version: 1.0.0
+main: net.gawhara.tickets.TicketsPlugin
+api-version: '26.1'
+author: GawharaSMP
+description: بلاغات وتذاكر من داخل اللعبة، كل تذكرة بتتعمل لها Thread في ديسكورد
+commands:
+  report:
+    description: ابعت بلاغ أو مشكلة للإدارة
+    usage: /report <رسالتك>
+    aliases: [ticket]
+    permission: gawharatickets.report
+  tickets:
+    description: إدارة التذاكر (للإدارة)
+    usage: /tickets <list|info|reply|close|reload>
+    aliases: [gtickets]
+    permission: gawharatickets.staff
+permissions:
+  gawharatickets.report:
+    description: يبعت بلاغ
+    default: true
+  gawharatickets.staff:
+    description: إدارة التذاكر
+    default: op

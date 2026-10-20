@@ -1,0 +1,42 @@
+# ===== GawharaTickets 1.0 =====
+# كل بلاغ بيتبعت بـ /report بيتعمل له Thread جديد في روم الإدارة (مش روم جديدة).
+# محتاج Bot (مش Webhook) لأن الـ Webhook ما يقدرش يعمل Thread في روم عادية.
+
+discord:
+  # توكن البوت: discord.com/developers/applications > Bot > Reset Token
+  # مهم: التوكن زي الباسورد، متبعتوش لحد.
+  bot-token: ""
+  # الروم اللي بتتعمل فيها الـ Threads (ممكن تكون روم عادية أو Forum)
+  channel-id: "1561477871061565572"
+  # (اختياري) ID رتبة الإدارة عشان البوت يعمل لها منشن مع كل تذكرة جديدة
+  staff-role-id: ""
+  # بعد كام دقيقة من غير نشاط الـ Thread يتقفل لوحده: 60 / 1440 / 4320 / 10080
+  auto-archive-minutes: 1440
+
+tickets:
+  cooldown-seconds: 60
+  min-length: 8
+  max-length: 800
+  max-open-per-player: 3
+
+# ردود الإدارة من داخل الـ Thread توصل للاعب في اللعبة
+# (لازم تفعّل Message Content Intent للبوت: Developer Portal > Bot > Privileged Gateway Intents)
+relay:
+  discord-to-game: true
+  poll-seconds: 20
+
+messages:
+  prefix: "&8[&6تذاكر&8] &r"
+  usage: "&cاستخدم: &e/report <وصف المشكلة>"
+  too-short: "&cاكتب وصف أوضح للمشكلة (على الأقل {min} حروف)."
+  too-long: "&cالرسالة طويلة، الحد الأقصى {max} حرف."
+  cooldown: "&cاستنى {seconds} ثانية قبل ما تبعت بلاغ تاني."
+  too-many-open: "&cعندك {count} تذاكر مفتوحة، استنى الإدارة ترد عليهم الأول."
+  sent: "&aاستلمنا بلاغك &e#{id}&a وهنرد عليك قريب."
+  send-failed: "&cمقدرناش نوصل بلاغك للإدارة دلوقتي، جرّب تاني بعد شوية أو كلّم حد من الإدارة."
+  staff-reply: "&6[تذكرة #{id}] &e{staff}&7: &f{msg}"
+  closed-notice: "&6[تذكرة #{id}] &aاتقفلت بواسطة &e{staff}&a. {reason}"
+  players-only: "الأمر ده للاعبين بس."
+  no-permission: "&cمعندكش صلاحية."
+  # رسالة بتتبعت داخل الـ Thread أول ما يتعمل (سيبها فاضية لو مش عايزها)
+  thread-intro: "اكتبوا ردكم هنا، وهيوصل للاعب جوه اللعبة. للإغلاق: /tickets close {id}"
