@@ -23,7 +23,10 @@ tickets:
 # (لازم تفعّل Message Content Intent للبوت: Developer Portal > Bot > Privileged Gateway Intents)
 relay:
   discord-to-game: true
-  poll-seconds: 20
+  # كل كام ثانية يشوف ردود الـ Threads (أقل حاجة 3). كل ما قلّ كل ما الرد وصل أسرع.
+  poll-seconds: 5
+  # اكتب ده في الـ Thread لقفل التذكرة: $غلق  أو  $غلق <رقم> [سبب]
+  close-command: "$غلق"
 
 messages:
   prefix: "&8[&6تذاكر&8] &r"
@@ -36,6 +39,14 @@ messages:
   send-failed: "&cمقدرناش نوصل بلاغك للإدارة دلوقتي، جرّب تاني بعد شوية أو كلّم حد من الإدارة."
   staff-reply: "&6[تذكرة #{id}] &e{staff}&7: &f{msg}"
   closed-notice: "&6[تذكرة #{id}] &aاتقفلت بواسطة &e{staff}&a. {reason}"
+  reply-usage: "&cاستخدم: &e/treply [رقم التذكرة] <رسالتك>"
+  reply-sent: "&aاتبعت ردك على تذكرة &e#{id}&a."
+  reply-failed: "&cمقدرناش نبعت ردك دلوقتي، جرّب تاني."
+  reply-not-found: "&cمفيش تذكرة مفتوحة بالرقم ده بتاعتك."
+  reply-pending: "&eالتذكرة لسه بتتجهز، جرّب بعد ثواني."
+  reply-multiple: "&cعندك أكتر من تذكرة مفتوحة ({ids})، حدد الرقم: &e/treply <رقم> <رسالتك>"
+  no-open-tickets: "&cمعندكش تذاكر مفتوحة. افتح واحدة بـ &e/report <المشكلة>"
+  my-tickets-header: "&6تذاكرك المفتوحة:"
   players-only: "الأمر ده للاعبين بس."
   no-permission: "&cمعندكش صلاحية."
   # رسالة بتتبعت داخل الـ Thread أول ما يتعمل (سيبها فاضية لو مش عايزها)

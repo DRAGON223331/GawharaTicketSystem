@@ -15,6 +15,20 @@ commands:
     usage: /tickets <list|info|reply|close|reload>
     aliases: [gtickets]
     permission: gawharatickets.staff
+  ticket-close:
+    description: قفل تذكرة
+    usage: /ticket-close <رقم> [السبب]
+    aliases: [tclose]
+    permission: gawharatickets.staff
+  treply:
+    description: رد على تذكرتك المفتوحة
+    usage: /treply [رقم] <رسالتك>
+    aliases: [ticketreply, tr]
+    permission: gawharatickets.report
+  mytickets:
+    description: تذاكرك المفتوحة
+    usage: /mytickets
+    permission: gawharatickets.report
 permissions:
   gawharatickets.report:
     description: يبعت بلاغ

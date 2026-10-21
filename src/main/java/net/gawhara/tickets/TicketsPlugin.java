@@ -100,9 +100,11 @@ public final class TicketsPlugin extends JavaPlugin implements Listener, TabExec
     private final Map<Integer, Ticket> tickets = new ConcurrentHashMap<>();
     private final Map<UUID, List<String>> pending = new ConcurrentHashMap<>();
     private final Map<UUID, Long> cooldowns = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> replyCooldowns = new ConcurrentHashMap<>();
     private final AtomicInteger nextId = new AtomicInteger(1);
 
     private volatile int channelType = -1;
+    private volatile String guildId = "";
     private volatile boolean warnedContent;
     private BukkitTask relayTask;
 
@@ -113,7 +115,7 @@ public final class TicketsPlugin extends JavaPlugin implements Listener, TabExec
         saveDefaultConfig();
         loadData();
         Bukkit.getPluginManager().registerEvents(this, this);
-        for (String cmd : List.of("report", "tickets")) {
+        for (String cmd : List.of("report", "tickets", "ticket-close", "treply", "mytickets")) {
             if (getCommand(cmd) != null) {
                 getCommand(cmd).setExecutor(this);
                 getCommand(cmd).setTabCompleter(this);
@@ -314,6 +316,9 @@ public final class TicketsPlugin extends JavaPlugin implements Listener, TabExec
     private int channelType() throws IOException, InterruptedException {
         if (channelType < 0) {
             JsonObject ch = requestObj("GET", "/channels/" + channelId(), null);
+            if (ch.has("guild_id") && !ch.get("guild_id").isJsonNull()) {
+                guildId = ch.get("guild_id").getAsString();
+            }
             channelType = ch.get("type").getAsInt();
         }
         return channelType;
@@ -484,7 +489,7 @@ public final class TicketsPlugin extends JavaPlugin implements Listener, TabExec
         if (!getConfig().getBoolean("relay.discord-to-game", true)) {
             return;
         }
-        long ticks = Math.max(10, getConfig().getInt("relay.poll-seconds", 20)) * 20L;
+        long ticks = Math.max(3, getConfig().getInt("relay.poll-seconds", 5)) * 20L;
         relayTask = Bukkit.getScheduler().runTaskTimerAsynchronously(this, this::pollReplies, ticks, ticks);
     }
 
@@ -521,6 +526,28 @@ public final class TicketsPlugin extends JavaPlugin implements Listener, TabExec
                         continue;
                     }
                     String content = m.has("content") ? m.get("content").getAsString().trim() : "";
+                    String closeCmd = getConfig().getString("relay.close-command", "$غلق").trim();
+                    if (!closeCmd.isEmpty() && (content.equals(closeCmd) || content.startsWith(closeCmd + " "))) {
+                        String rest = content.substring(closeCmd.length()).trim();
+                        String reason = rest;
+                        if (!rest.isEmpty()) {
+                            String[] parts = rest.split("\\s+", 2);
+                            String first = parts[0].replace("#", "");
+                            if (first.matches("\\d{1,9}")) {
+                                if (Integer.parseInt(first) != t.id) {
+                                    postThread(t, "❌ الرقم ده مش بتاع التذكرة دي، التذكرة دي هي #" + t.id);
+                                    continue;
+                                }
+                                reason = parts.length > 1 ? parts[1] : "";
+                            }
+                        }
+                        if (!isStaffAuthor(author)) {
+                            postThread(t, "❌ معندكش صلاحية قفل التذاكر.");
+                            continue;
+                        }
+                        closeTicket(t, displayName(author), reason);
+                        break;
+                    }
                     if (content.isEmpty()) {
                         boolean hasAttach = m.has("attachments") && !m.getAsJsonArray("attachments").isEmpty();
                         if (!hasAttach && !warnedContent) {
@@ -558,6 +585,18 @@ public final class TicketsPlugin extends JavaPlugin implements Listener, TabExec
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (command.getName().equalsIgnoreCase("report")) {
             return handleReport(sender, args);
+        }
+        if (command.getName().equalsIgnoreCase("treply")) {
+            return handlePlayerReply(sender, args);
+        }
+        if (command.getName().equalsIgnoreCase("mytickets")) {
+            return handleMyTickets(sender);
+        }
+        if (command.getName().equalsIgnoreCase("ticket-close")) {
+            String[] shifted = new String[args.length + 1];
+            shifted[0] = "close";
+            System.arraycopy(args, 0, shifted, 1, args.length);
+            return handleTickets(sender, shifted);
         }
         return handleTickets(sender, args);
     }
@@ -612,6 +651,113 @@ public final class TicketsPlugin extends JavaPlugin implements Listener, TabExec
 
         tell(p, "sent", "id", String.valueOf(t.id));
         io.execute(() -> createDiscordTicket(t, snap));
+        return true;
+    }
+
+    private List<Ticket> openTicketsOf(UUID uuid) {
+        List<Ticket> mine = new ArrayList<>();
+        for (Ticket t : tickets.values()) {
+            if (t.open && t.uuid.equals(uuid)) {
+                mine.add(t);
+            }
+        }
+        mine.sort(Comparator.comparingInt((Ticket t) -> t.id));
+        return mine;
+    }
+
+    private boolean handleMyTickets(CommandSender sender) {
+        if (!(sender instanceof Player p)) {
+            tell(sender, "players-only");
+            return true;
+        }
+        List<Ticket> mine = openTicketsOf(p.getUniqueId());
+        if (mine.isEmpty()) {
+            tell(p, "no-open-tickets");
+            return true;
+        }
+        p.sendMessage(text(msg("my-tickets-header")));
+        for (Ticket t : mine) {
+            p.sendMessage(text("&e#" + t.id + " &7- &f" + truncate(t.message.replaceAll("\\s+", " "), 50)
+                    + " &8(" + ago(t.createdSec) + ")"));
+        }
+        return true;
+    }
+
+    /** اللاعب بيرد على تذكرته: الرسالة بتتبعت داخل الـ Thread. */
+    private boolean handlePlayerReply(CommandSender sender, String[] args) {
+        if (!(sender instanceof Player p)) {
+            tell(sender, "players-only");
+            return true;
+        }
+        if (args.length == 0) {
+            tell(p, "reply-usage");
+            return true;
+        }
+        List<Ticket> mine = openTicketsOf(p.getUniqueId());
+        Ticket t;
+        String body;
+        if (args.length >= 2 && args[0].matches("#?\\d{1,9}")) {
+            t = tickets.get(Integer.parseInt(args[0].replace("#", "")));
+            if (t == null || !t.open || !t.uuid.equals(p.getUniqueId())) {
+                tell(p, "reply-not-found");
+                return true;
+            }
+            body = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length));
+        } else if (mine.isEmpty()) {
+            tell(p, "no-open-tickets");
+            return true;
+        } else if (mine.size() == 1) {
+            t = mine.get(0);
+            body = String.join(" ", args);
+        } else {
+            StringBuilder ids = new StringBuilder();
+            for (Ticket x : mine) {
+                ids.append(ids.length() == 0 ? "" : ", ").append('#').append(x.id);
+            }
+            tell(p, "reply-multiple", "ids", ids.toString());
+            return true;
+        }
+        body = body.trim();
+        int max = getConfig().getInt("tickets.max-length", 800);
+        if (body.isEmpty()) {
+            tell(p, "reply-usage");
+            return true;
+        }
+        if (body.length() > max) {
+            tell(p, "too-long", "max", String.valueOf(max));
+            return true;
+        }
+        if (t.threadId.isBlank()) {
+            tell(p, "reply-pending");
+            return true;
+        }
+        long now = System.currentTimeMillis();
+        Long last = replyCooldowns.get(p.getUniqueId());
+        if (last != null && now - last < 3000) {
+            tell(p, "cooldown", "seconds", "3");
+            return true;
+        }
+        replyCooldowns.put(p.getUniqueId(), now);
+
+        final Ticket target = t;
+        final String content = body;
+        final String name = p.getName();
+        final UUID uuid = p.getUniqueId();
+        io.execute(() -> {
+            try {
+                JsonObject b = new JsonObject();
+                b.addProperty("content", truncate("**" + name + "** (اللاعب): " + content, 1900));
+                b.add("allowed_mentions", noMentions());
+                String id = requestObj("POST", "/channels/" + target.threadId + "/messages", b).get("id").getAsString();
+                target.lastMsgId = id;
+            } catch (IOException | RuntimeException e) {
+                getLogger().warning("فشل إرسال رد اللاعب " + name + " على #" + target.id + ": " + e.getMessage());
+                notifyPlayerSync(uuid, getConfig().getString("messages.prefix", "") + msg("reply-failed"));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        tell(p, "reply-sent", "id", String.valueOf(t.id));
         return true;
     }
 
@@ -725,17 +871,72 @@ public final class TicketsPlugin extends JavaPlugin implements Listener, TabExec
                 String reason = args.length > 2
                         ? String.join(" ", java.util.Arrays.copyOfRange(args, 2, args.length)) : "";
                 String staff = sender.getName();
-                t.open = false;
-                t.closedBy = staff;
-                saveAsync();
-                io.execute(() -> closeThread(t, staff, reason));
-                notifyPlayer(t.uuid, getConfig().getString("messages.prefix", "")
-                        + msg("closed-notice", "id", String.valueOf(t.id), "staff", staff, "reason", reason));
+                io.execute(() -> closeTicket(t, staff, reason));
                 sender.sendMessage(text("&aتم إغلاق التذكرة #" + t.id + "."));
             }
             default -> sender.sendMessage(text("&cاستخدم: /tickets <list|info|reply|close|reload>"));
         }
         return true;
+    }
+
+    private static String displayName(JsonObject author) {
+        return author.has("global_name") && !author.get("global_name").isJsonNull()
+                ? author.get("global_name").getAsString()
+                : author.get("username").getAsString();
+    }
+
+    /** لو staff-role-id مضبوط: لازم صاحب الرسالة يكون معاه الرتبة دي. غير كده: أي حد في الـ Thread. */
+    private boolean isStaffAuthor(JsonObject author) {
+        String role = getConfig().getString("discord.staff-role-id", "").trim();
+        if (role.isEmpty()) {
+            return true;
+        }
+        try {
+            if (guildId.isBlank()) {
+                channelType();
+            }
+            JsonObject m = requestObj("GET", "/guilds/" + guildId + "/members/" + author.get("id").getAsString(), null);
+            for (JsonElement e : m.getAsJsonArray("roles")) {
+                if (e.getAsString().equals(role)) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (IOException | RuntimeException e) {
+            getLogger().warning("تعذر التحقق من رتبة صاحب أمر القفل: " + e.getMessage());
+            return false;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    private void postThread(Ticket t, String content) {
+        try {
+            JsonObject b = new JsonObject();
+            b.addProperty("content", truncate(content, 1900));
+            b.add("allowed_mentions", noMentions());
+            request("POST", "/channels/" + t.threadId + "/messages", b);
+        } catch (IOException | RuntimeException e) {
+            getLogger().fine("postThread #" + t.id + ": " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /** بيقفل التذكرة (الحالة + الإشعار + Thread). ممكن يتنده من أي thread (بيعمل HTTP). */
+    private void closeTicket(Ticket t, String staff, String reason) {
+        synchronized (t) {
+            if (!t.open) {
+                return;
+            }
+            t.open = false;
+            t.closedBy = staff;
+        }
+        saveAsync();
+        notifyPlayerSync(t.uuid, getConfig().getString("messages.prefix", "")
+                + msg("closed-notice", "id", String.valueOf(t.id), "staff", staff, "reason", reason));
+        closeThread(t, staff, reason);
     }
 
     private void closeThread(Ticket t, String staff, String reason) {
@@ -773,7 +974,30 @@ public final class TicketsPlugin extends JavaPlugin implements Listener, TabExec
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> out = new ArrayList<>();
-        if (!command.getName().equalsIgnoreCase("tickets") || !sender.hasPermission("gawharatickets.staff")) {
+        if (!command.getName().equalsIgnoreCase("treply") && !sender.hasPermission("gawharatickets.staff")) {
+            return out;
+        }
+        if (command.getName().equalsIgnoreCase("treply")) {
+            if (args.length == 1 && sender instanceof Player pl) {
+                for (Ticket t : openTicketsOf(pl.getUniqueId())) {
+                    if (String.valueOf(t.id).startsWith(args[0])) {
+                        out.add(String.valueOf(t.id));
+                    }
+                }
+            }
+            return out;
+        }
+        if (command.getName().equalsIgnoreCase("ticket-close")) {
+            if (args.length == 1) {
+                for (Ticket t : tickets.values()) {
+                    if (t.open && String.valueOf(t.id).startsWith(args[0])) {
+                        out.add(String.valueOf(t.id));
+                    }
+                }
+            }
+            return out;
+        }
+        if (!command.getName().equalsIgnoreCase("tickets")) {
             return out;
         }
         if (args.length == 1) {
