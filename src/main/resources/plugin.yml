@@ -1,16 +1,38 @@
-name: GawharaStatus
-version: 1.1.0
-main: net.gawhara.status.StatusPlugin
+name: GawharaTickets
+version: 1.0.0
+main: net.gawhara.tickets.TicketsPlugin
 api-version: '26.1'
 author: GawharaSMP
-description: حالة السيرفر العلنية في ديسكورد (أونلاين / بيترستر / أوفلاين + عدد اللاعبين)
+description: بلاغات وتذاكر من داخل اللعبة، كل تذكرة بتتعمل لها Thread في ديسكورد
 commands:
-  serverstatus:
-    description: تحديث أو إعادة تحميل حالة السيرفر
-    usage: /serverstatus [refresh|reload|reset]
-    aliases: [gstatus]
-    permission: gawharastatus.admin
+  report:
+    description: ابعت بلاغ أو مشكلة للإدارة
+    usage: /report <رسالتك>
+    aliases: [ticket]
+    permission: gawharatickets.report
+  tickets:
+    description: إدارة التذاكر (للإدارة)
+    usage: /tickets <list|info|reply|close|reload>
+    aliases: [gtickets]
+    permission: gawharatickets.staff
+  ticket-close:
+    description: قفل تذكرة
+    usage: /ticket-close <رقم> [السبب]
+    aliases: [tclose]
+    permission: gawharatickets.staff
+  treply:
+    description: رد على تذكرتك المفتوحة
+    usage: /treply [رقم] <رسالتك>
+    aliases: [ticketreply, tr]
+    permission: gawharatickets.report
+  mytickets:
+    description: تذاكرك المفتوحة
+    usage: /mytickets
+    permission: gawharatickets.report
 permissions:
-  gawharastatus.admin:
-    description: التحكم في بلجن الحالة
+  gawharatickets.report:
+    description: يبعت بلاغ
+    default: true
+  gawharatickets.staff:
+    description: إدارة التذاكر
     default: op
