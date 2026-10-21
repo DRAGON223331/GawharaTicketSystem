@@ -1,53 +1,82 @@
-# ===== GawharaTickets 1.0 =====
-# كل بلاغ بيتبعت بـ /report بيتعمل له Thread جديد في روم الإدارة (مش روم جديدة).
-# محتاج Bot (مش Webhook) لأن الـ Webhook ما يقدرش يعمل Thread في روم عادية.
+# ===== GawharaStatus 1.1 =====
+# بيبعت رسالة واحدة في روم ديسكورد وبيعدّلها نفسها (مش بيعمل رسايل جديدة).
+# الحالات: 🟢 أونلاين | 🟠 بيترستر | 🔴 أوفلاين
 
 discord:
-  # توكن البوت: discord.com/developers/applications > Bot > Reset Token
-  # مهم: التوكن زي الباسورد، متبعتوش لحد.
-  bot-token: ""
-  # الروم اللي بتتعمل فيها الـ Threads (ممكن تكون روم عادية أو Forum)
-  channel-id: "1561477871061565572"
-  # (اختياري) ID رتبة الإدارة عشان البوت يعمل لها منشن مع كل تذكرة جديدة
-  staff-role-id: ""
-  # بعد كام دقيقة من غير نشاط الـ Thread يتقفل لوحده: 60 / 1440 / 4320 / 10080
-  auto-archive-minutes: 1440
+  # Webhook الروم العلنية: إعدادات الروم > Integrations > Webhooks > New Webhook > Copy Webhook URL
+  webhook-url: ""
+  username: "GawharaSMP Status"
+  avatar-url: ""
+  # صورة صغيرة فوق يمين الرسالة. لو فاضية وuse-server-icon=true بتتجاب أيقونة السيرفر لوحدها.
+  thumbnail-url: ""
+  use-server-icon: true
+  # بانر كبير تحت الرسالة (اختياري)
+  image-url: ""
 
-tickets:
-  cooldown-seconds: 60
-  min-length: 8
-  max-length: 800
-  max-open-per-player: 3
+# ربط لوحة التحكم (Pterodactyl) عشان CPU/RAM/Disk الحقيقيين ومدة التشغيل.
+# API Key: صورتك فوق يمين اللوحة > API Credentials > Create. سيبه "" لو مش عايز الربط.
+# مهم: الـ Key زي الباسورد، متبعتوش لحد.
+panel:
+  url: "https://tickhosting.com"
+  server-id: "77de1f91"
+  api-key: ""
+  show-disk: true
 
-# ردود الإدارة من داخل الـ Thread توصل للاعب في اللعبة
-# (لازم تفعّل Message Content Intent للبوت: Developer Portal > Bot > Privileged Gateway Intents)
-relay:
-  discord-to-game: true
-  # كل كام ثانية يشوف ردود الـ Threads (أقل حاجة 3). كل ما قلّ كل ما الرد وصل أسرع.
-  poll-seconds: 5
-  # اكتب ده في الـ Thread لقفل التذكرة: $غلق  أو  $غلق <رقم> [سبب]
-  close-command: "$غلق"
+server-name: "GawharaSMP"
 
-messages:
-  prefix: "&8[&6تذاكر&8] &r"
-  usage: "&cاستخدم: &e/report <وصف المشكلة>"
-  too-short: "&cاكتب وصف أوضح للمشكلة (على الأقل {min} حروف)."
-  too-long: "&cالرسالة طويلة، الحد الأقصى {max} حرف."
-  cooldown: "&cاستنى {seconds} ثانية قبل ما تبعت بلاغ تاني."
-  too-many-open: "&cعندك {count} تذاكر مفتوحة، استنى الإدارة ترد عليهم الأول."
-  sent: "&aاستلمنا بلاغك &e#{id}&a وهنرد عليك قريب."
-  send-failed: "&cمقدرناش نوصل بلاغك للإدارة دلوقتي، جرّب تاني بعد شوية أو كلّم حد من الإدارة."
-  staff-reply: "&6[تذكرة #{id}] &e{staff}&7: &f{msg}"
-  closed-notice: "&6[تذكرة #{id}] &aاتقفلت بواسطة &e{staff}&a. {reason}"
-  reply-usage: "&cاستخدم: &e/treply [رقم التذكرة] <رسالتك>"
-  reply-sent: "&aاتبعت ردك على تذكرة &e#{id}&a."
-  reply-failed: "&cمقدرناش نبعت ردك دلوقتي، جرّب تاني."
-  reply-not-found: "&cمفيش تذكرة مفتوحة بالرقم ده بتاعتك."
-  reply-pending: "&eالتذكرة لسه بتتجهز، جرّب بعد ثواني."
-  reply-multiple: "&cعندك أكتر من تذكرة مفتوحة ({ids})، حدد الرقم: &e/treply <رقم> <رسالتك>"
-  no-open-tickets: "&cمعندكش تذاكر مفتوحة. افتح واحدة بـ &e/report <المشكلة>"
-  my-tickets-header: "&6تذاكرك المفتوحة:"
-  players-only: "الأمر ده للاعبين بس."
-  no-permission: "&cمعندكش صلاحية."
-  # رسالة بتتبعت داخل الـ Thread أول ما يتعمل (سيبها فاضية لو مش عايزها)
-  thread-intro: "اكتبوا ردكم هنا، وهيوصل للاعب جوه اللعبة. للإغلاق: /tickets close {id}"
+# عنوان Java اللي بيدخل بيه اللاعبين
+java-ip: "gawharasmp.tkmc.net"
+# عنوان بديل يتعرض تحت (لو الدومين وقع). سيبه "" لو مش عايزه.
+java-backup-address: "node-de-free-01.tickhosting.com:51008"
+
+# Bedrock: لو الاستضافة مفيهاش بورت UDP خليها false والسطر هيختفي
+bedrock-enabled: true
+bedrock-ip: "gawharasmp.tkmc.net"
+bedrock-port: 51008
+
+# كل كام ثانية يحدّث الرسالة (أقل حاجة 15). التحديث بيحصل فوراً كمان لما حد يدخل/يخرج.
+update-interval-seconds: 30
+
+show-tps: true
+show-mspt: true
+show-version: true
+# رام الجافا واستهلاك المعالج
+show-resources: true
+# من إمتى السيرفر شغال
+show-uptime: true
+# أعلى عدد لاعبين النهارده
+show-peak: true
+# يعرض أسماء اللي جوا السيرفر
+show-player-names: false
+
+# لو true: أي إيقاف للسيرفر (stop) يتعرض "بيترستر" بدل "أوفلاين".
+# مفيد لو الاستضافة بتعمل Restart عن طريق stop (زرار الريستارت في اللوحة).
+treat-stop-as-restart: false
+
+texts:
+  title-online: "🟢 {server} — أونلاين"
+  title-restarting: "🟠 {server} — بيترستر"
+  title-offline: "🔴 {server} — أوفلاين"
+  desc-online: "السيرفر شغال وتقدر تدخل دلوقتي ✅"
+  desc-restarting: "السيرفر بيترستر دلوقتي، استنى دقيقة وارجع 🔄"
+  desc-offline: "السيرفر مقفول حالياً ❌"
+  status-online: "✅ شغال"
+  status-restarting: "🔄 بيترستر"
+  status-offline: "❌ مقفول"
+  f-status: "الحالة"
+  f-players: "👥 اللاعبين"
+  f-performance: "⚡ الأداء"
+  f-resources: "📊 الموارد"
+  crash-notice: "⚠️ رجع بعد وقوف مفاجئ، آخر مرة كان شغال:"
+  f-version: "🎮 الإصدار"
+  f-uptime: "⏱️ شغال من"
+  f-peak: "🏆 أعلى عدد النهارده"
+  f-last-seen: "🕒 آخر مرة شغال"
+  f-java: "☕ Java"
+  f-bedrock: "📱 Bedrock"
+  f-names: "🧑‍🤝‍🧑 اللي جوا السيرفر"
+  bedrock-address: "العنوان"
+  bedrock-port: "البورت"
+  backup-label: "↪ عنوان بديل:"
+  updated-prefix: "🕒 آخر تحديث:"
+  footer: "لو آخر تحديث قديم أكتر من دقيقتين، يبقى السيرفر واقف"
